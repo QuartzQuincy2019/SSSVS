@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <title>SSSVS</title>
+    <meta name="viewport" content="width=device-width" charset="utf-8" />
+    <script src="./js/lib/decimal.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+        integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+
+    <!-- The loading of KaTeX is deferred to speed up page rendering -->
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+        integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg"
+        crossorigin="anonymous"></script>
+
+    <!-- To automatically render math in text elements, include the auto-render extension: -->
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+        integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"
+        onload="renderMathInElement(document.body);"></script>
+    <script src="./js/plugin/ZEREMF.js"></script>
+    <script src="./js/plugin/ZERSCF.js"></script>
+</head>
+
+<body>
+    <h1 style="text-align: center;">SSSVS</h1>
+    <h2 style="text-align: center;">Simple Site Stereoscopic Visual Simulator - <span id="version">version</span></h2>
+    <p>$\text{一律使用右手坐标系.
+        观测者坐标系}S(SXYZ)\text{,坐标轴单位方向向量}\overrightarrow{SX},\overrightarrow{SY},\overrightarrow{OZ}.\quad\text{绝对坐标系}A(Oxyz)\text{,坐标轴单位方向向量}\vec{x},\vec{y},\vec{z}$
+    </p>
+    <p style="text-align: center;">$\text{平动}$：<strong>WSAD/前后左右；Shift&Ctrl/上&下</strong></p>
+    <p style="text-align: center;">$\text{转动}$：<strong>ZX/航向角(yawling)——左右转身；QE/翻滚角(rolling)——左右歪头；FR/仰角转动(pitching)俯仰</strong></p>
+    <p>$\text{在}S\text{坐标系内, } Y \text{轴(前轴)正方向为头部朝向; } X \text{轴(右轴)方向为右侧; } Z
+        \text{轴(上轴)正方向为头顶方向.}$<br>$\text{航向角转动是绕自身}Z\text{轴转动,翻滚角转动是绕自身}Y\text{轴转动,俯仰角转动是绕自身}X{轴转动.}$</p>
+    <hr>
+    <p>位置向量（简称位矢）坐标$ \overrightarrow{OS}:\begin{bmatrix} x\\y\\z\\ \end{bmatrix}$.观测者坐标$S$的坐标轴单位方向矩阵$D=\begin{bmatrix} x_{\vec{SX}}&x_{\vec{SY}}&x_{\vec{SZ}}\\
+        y_{\vec{SX}}&y_{\vec{SY}}&y_{\vec{SZ}}\\
+        z_{\vec{SX}}&z_{\vec{SY}}&z_{\vec{SZ}}\\
+        \end{bmatrix}$表示观测者坐标系$S$三个坐标轴对应的单位向量在绝对坐标系$A$的坐标.旋转一次的角度为$\varphi=\frac{\pi}{6}$，规定绕轴向左旋转$\varphi>0$</p>
+        <p>将位置矩阵和方向矩阵结合，形成齐次矩阵$L=\begin{bmatrix} x_{\vec{SX}}&x_{\vec{SY}}&x_{\vec{SZ}}&x\\  y_{\vec{SX}}&y_{\vec{SY}}&y_{\vec{SZ}}&y\\   z_{\vec{SX}}&z_{\vec{SY}}&z_{\vec{SZ}}&z \\ 0&0&0&1\\   \end{bmatrix}$下面展示的是齐次矩阵$L$：</p>
+    <hr>
+    <div id="origin_displayer" style="font-family: Arial, Helvetica, sans-serif; font-size: 25px;"></div>
+    <div id="distance_displayer" style="font-family: Arial, Helvetica, sans-serif; font-size: 25px;"></div>
+    <hr>
+    <p>观测者原点位置向量$\overrightarrow{OS}$初始值：$\begin{bmatrix} 0\\0\\0\\ \end{bmatrix}$</p>
+    <p>观测者坐标$S$矩阵初始值：$D_0=\begin{bmatrix} 1&0&0\\0&1&0\\0&0&1\\
+        \end{bmatrix}$，当$D=D_0$时，表示当前观测者的朝向与$y$轴正方向平行，观测者的头顶方向与$z$轴正方向平行。</p>
+    <p>若要修改旋转一次的角度$\varphi$，可打开控制台并输入$\text{PHI=Decimal.div(...)}$，括号内是弧度数。</p>
+    <p>若要修改$L$展示的小数位数，可打开控制台并输入$\text{OCPrecision=...}$然后回车。</p>
+    <script src="./js/core.js"></script>
+</body>
+
+</html>
