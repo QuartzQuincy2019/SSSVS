@@ -42,7 +42,7 @@ function calculateRotationMatrix(axisVector, rotationAngle) {
         throw new Error("旋转轴向量不是三维向量！");
     }
     if (axisVector.r == 1 && axisVector.c == 3) {
-        axisVector = transpose(axisVector);
+        axisVector = axisVector.transpose();
     }
     var x = Decimal(axisVector.matrix[0][0]);
     var y = Decimal(axisVector.matrix[1][0]);
@@ -128,6 +128,10 @@ var BrokenO = new Matrix(1, 1);
 BrokenO.matrix = [[Decimal(0)]];
 var StOCM3 = generateOrthogonalCoordinateMatrix(4);
 var ObOCM3 = StOCM3;
+//用户坐标系统
+var OBSERVER_COORDINATE = generateOrthogonalCoordinateMatrix(4);
+var TOTAL_ROTATION_MATRIX = new Matrix(4, 4);
+var DISTANCE_TO_ORIGIN = new Decimal(0);
 
 /**
  * 移动坐标系
@@ -155,10 +159,6 @@ function rotateCoordinate3(originCoordinate, ...rotationMatrix) {
 }
 
 
-//用户坐标系统
-var OBSERVER_COORDINATE = generateOrthogonalCoordinateMatrix(4);
-var TOTAL_ROTATION_MATRIX = new Matrix(4, 4);
-var DISTANCE_TO_ORIGIN = new Decimal(0);
 
 /**
  * 获取观测者坐标系的朝向单位向量（观测者坐标系的某个轴的单位向量）和位移向量
@@ -188,7 +188,7 @@ function getPDMatrixInfo(observer_coordinate, info) {
     if (infoCode < 3) {//即旋转矩阵或方向矩阵的分量，需要进行单位化
         var t = clipMatrix(dv, 0, 0, 2, 0);
         t = uniteVector(t);
-        dv = concatenateMatrices(t, BrokenO);
+        dv = concatenateMatrices('V', t, BrokenO);
     }
     return dv;
 }
@@ -199,8 +199,8 @@ function getPDMatrixInfo(observer_coordinate, info) {
  * @param {Matrix} point2 
  */
 function getDistanceBetweenPoints(point1, point2) {
-    var V1 = transpose(point1);
-    var V2 = transpose(point2);
+    var V1 = point1.transpose();
+    var V2 = point2.transpose();
     var S = Decimal(0);
     for (var i = 0; i < V1.c; i++) {
         let a = Decimal(V1.matrix[0][i]);
@@ -224,144 +224,127 @@ function getDirectionMatrix(observer_coordinate) {
 var PHI = Decimal.div(PI, 6);//单次旋转角
 var OCPrecision = 4;
 function refreshDisplay() {
-    this.document.getElementById("origin_displayer").innerHTML = OBSERVER_COORDINATE.print(OCPrecision);
+    this.document.getElementById("origin_displayer").innerHTML = "";
+    let table = OBSERVER_COORDINATE.table(4);
+    table.rows[0].cells[3].classList.add("mvX");
+    table.rows[1].cells[3].classList.add("mvY");
+    table.rows[2].cells[3].classList.add("mvZ");
+    this.document.getElementById("origin_displayer").appendChild(table);
     this.document.getElementById("distance_displayer").innerHTML = "OS=" + DISTANCE_TO_ORIGIN.toNumber().toFixed(7);
 }
+function applyObserverRotation(DIRECTION) {
+    //DIRECTION: ["x","cw"],["z","ccw"]
+    let ang = PHI;
+    if (DIRECTION[1] == 'cw') ang = -PHI;
+    let axis = getPDMatrixInfo(OBSERVER_COORDINATE, DIRECTION[0]);
+    let position = getPDMatrixInfo(OBSERVER_COORDINATE, "m");
+    axis = clipMatrix(axis, 0, 0, 2, 0);
+    let R = calculateRotationMatrix(axis, ang);
+    let newDir = matrixMultiply(getDirectionMatrix(OBSERVER_COORDINATE), R);
+    OBSERVER_COORDINATE = concatenateMatrices('H', concatenateMatrices('V', newDir, V03H), position);
+}
+/**
+ * 
+ * @param {Array} DIRECTION 
+ */
+function applyObserverMovement(DIRECTION) {
+    //DIRECTION: ["y","+"],["z","-"]
+    let sc = 1;
+    if (DIRECTION[1] == '-') sc = -1;
+    let movement = matrixScale(sc, getPDMatrixInfo(OBSERVER_COORDINATE, DIRECTION[0]));
+    movement.matrix[3][0] = Decimal(1);
+    movement = concatenateMatrices('H', matrixMvInit, movement);
+    OBSERVER_COORDINATE = moveCoordinate(OBSERVER_COORDINATE, movement);
+    DISTANCE_TO_ORIGIN = getDistanceBetweenPoints(getPDMatrixInfo(OBSERVER_COORDINATE, "m"), O1);
+}
+function applyTransform(MODE, DIRECTION) {
+    if (MODE == 'M') applyObserverMovement(DIRECTION);
+    if (MODE == 'R') applyObserverRotation(DIRECTION);
+    refreshDisplay();
+}
+
+
 window.addEventListener("keydown", function (e) {
     e.preventDefault();
     if (e.key == "w") {
-        var movement = getPDMatrixInfo(OBSERVER_COORDINATE, "y");
-        movement.matrix[3][0] = Decimal(1);
-        movement = concatenateMatrices(matrixMvInit, movement);
-        OBSERVER_COORDINATE = moveCoordinate(OBSERVER_COORDINATE, movement);
-        DISTANCE_TO_ORIGIN = getDistanceBetweenPoints(getPDMatrixInfo(OBSERVER_COORDINATE, "m"), O1);
+        applyTransform("M", ["y", "+"]);
     }
     refreshDisplay();
 });
 window.addEventListener("keydown", function (e) {
     e.preventDefault();
     if (e.key == "s") {
-        var movement = matrixScale(-1, getPDMatrixInfo(OBSERVER_COORDINATE, "y"));
-        movement.matrix[3][0] = Decimal(1);
-        movement = concatenateMatrices(matrixMvInit, movement);
-        OBSERVER_COORDINATE = moveCoordinate(OBSERVER_COORDINATE, movement);
-        DISTANCE_TO_ORIGIN = getDistanceBetweenPoints(getPDMatrixInfo(OBSERVER_COORDINATE, "m"), O1);
+        applyTransform("M", ["y", "-"]);
+        refreshDisplay();
     }
-    refreshDisplay();
 });
 window.addEventListener("keydown", function (e) {
     e.preventDefault();
     if (e.key == "d") {//右
-        var movement = getPDMatrixInfo(OBSERVER_COORDINATE, "x");
-        movement.matrix[3][0] = Decimal(1);
-        movement = concatenateMatrices(matrixMvInit, movement);
-        OBSERVER_COORDINATE = moveCoordinate(OBSERVER_COORDINATE, movement);
-        DISTANCE_TO_ORIGIN = getDistanceBetweenPoints(getPDMatrixInfo(OBSERVER_COORDINATE, "m"), O1);
+        applyTransform("M", ["x", "+"]);
     }
     refreshDisplay();
 });
 window.addEventListener("keydown", function (e) {
     e.preventDefault();
     if (e.key == "a") {//左
-        var movement = matrixScale(-1, getPDMatrixInfo(OBSERVER_COORDINATE, "x"));
-        movement.matrix[3][0] = Decimal(1);
-        movement = concatenateMatrices(matrixMvInit, movement);
-        OBSERVER_COORDINATE = moveCoordinate(OBSERVER_COORDINATE, movement);
-        DISTANCE_TO_ORIGIN = getDistanceBetweenPoints(getPDMatrixInfo(OBSERVER_COORDINATE, "m"), O1);
+        applyTransform("M", ['x', "-"]);
     }
     refreshDisplay();
 });
 window.addEventListener("keydown", function (e) {
     e.preventDefault();
     if (e.key == "Shift") {//上
-        var movement = getPDMatrixInfo(OBSERVER_COORDINATE, "z");
-        movement.matrix[3][0] = Decimal(1);
-        movement = concatenateMatrices(matrixMvInit, movement);
-        OBSERVER_COORDINATE = moveCoordinate(OBSERVER_COORDINATE, movement);
-        DISTANCE_TO_ORIGIN = getDistanceBetweenPoints(getPDMatrixInfo(OBSERVER_COORDINATE, "m"), O1);
+        applyTransform("M", ["z", "+"]);
     }
     refreshDisplay();
 });
 window.addEventListener("keydown", function (e) {
     e.preventDefault();
     if (e.key == "Control") {//下
-        var movement = matrixScale(-1, getPDMatrixInfo(OBSERVER_COORDINATE, "z"));
-        movement.matrix[3][0] = Decimal(1);
-        movement = concatenateMatrices(matrixMvInit, movement);
-        OBSERVER_COORDINATE = moveCoordinate(OBSERVER_COORDINATE, movement);
-        DISTANCE_TO_ORIGIN = getDistanceBetweenPoints(getPDMatrixInfo(OBSERVER_COORDINATE, "m"), O1);
+        applyTransform("M", ["z", "-"]);
     }
     refreshDisplay();
 });
 window.addEventListener("keydown", function (e) {
     e.preventDefault();
     if (e.key == "z") {//向左转30
-        let axis = getPDMatrixInfo(OBSERVER_COORDINATE, "z");
-        let position = getPDMatrixInfo(OBSERVER_COORDINATE, "m");
-        axis = clipMatrix(axis, 0, 0, 2, 0);
-        let R = calculateRotationMatrix(axis, PHI);
-        let newDir = matrixMultiply(getDirectionMatrix(OBSERVER_COORDINATE), R);
-        OBSERVER_COORDINATE = concatenateMatrices(concatenateMatrices(newDir, V03H), position);
+        applyTransform("R", ["z", "ccw"]);
     }
     refreshDisplay();
 });
 window.addEventListener("keydown", function (e) {
     e.preventDefault();
-    if (e.key == "x") {//向右转30
-        let axis = getPDMatrixInfo(OBSERVER_COORDINATE, "z");
-        let position = getPDMatrixInfo(OBSERVER_COORDINATE, "m");
-        axis = clipMatrix(axis, 0, 0, 2, 0);
-        let R = calculateRotationMatrix(axis, -PHI);
-        let newDir = matrixMultiply(getDirectionMatrix(OBSERVER_COORDINATE), R);
-        OBSERVER_COORDINATE = concatenateMatrices(concatenateMatrices(newDir, V03H), position);
+    if (e.key == "x") {//向右转30，绕z轴顺时针
+        applyTransform("R", ["z", "cw"]);
     }
     refreshDisplay();
 });
 window.addEventListener("keydown", function (e) {
     e.preventDefault();
-    if (e.key == "q") {//向左翻滚30
-        let axis = getPDMatrixInfo(OBSERVER_COORDINATE, "y");
-        let position = getPDMatrixInfo(OBSERVER_COORDINATE, "m");
-        axis = clipMatrix(axis, 0, 0, 2, 0);
-        let R = calculateRotationMatrix(axis, PHI);
-        let newDir = matrixMultiply(getDirectionMatrix(OBSERVER_COORDINATE), R);
-        OBSERVER_COORDINATE = concatenateMatrices(concatenateMatrices(newDir, V03H), position);
+    if (e.key == "q") {//向左翻滚30，绕y轴顺时针
+        applyTransform("R", ["y", "cw"]);
     }
     refreshDisplay();
 });
 window.addEventListener("keydown", function (e) {
     e.preventDefault();
     if (e.key == "e") {//向右翻滚30
-        let axis = getPDMatrixInfo(OBSERVER_COORDINATE, "y");
-        let position = getPDMatrixInfo(OBSERVER_COORDINATE, "m");
-        axis = clipMatrix(axis, 0, 0, 2, 0);
-        let R = calculateRotationMatrix(axis, -PHI);
-        let newDir = matrixMultiply(getDirectionMatrix(OBSERVER_COORDINATE), R);
-        OBSERVER_COORDINATE = concatenateMatrices(concatenateMatrices(newDir, V03H), position);
+        applyTransform("R", ["y", "ccw"]);
     }
     refreshDisplay();
 });
 window.addEventListener("keydown", function (e) {
     e.preventDefault();
-    if (e.key == "f") {//低头:x,-phi
-        let axis = getPDMatrixInfo(OBSERVER_COORDINATE, "x");
-        let position = getPDMatrixInfo(OBSERVER_COORDINATE, "m");
-        axis = clipMatrix(axis, 0, 0, 2, 0);
-        let R = calculateRotationMatrix(axis, -PHI);
-        let newDir = matrixMultiply(getDirectionMatrix(OBSERVER_COORDINATE), R);
-        OBSERVER_COORDINATE = concatenateMatrices(concatenateMatrices(newDir, V03H), position);
+    if (e.key == "f") {//低头:绕x轴顺时针
+        applyTransform("R", ["x", "cw"]);
     }
     refreshDisplay();
 });
 window.addEventListener("keydown", function (e) {
     e.preventDefault();
     if (e.key == "r") {//仰头:x,+phi
-        let axis = getPDMatrixInfo(OBSERVER_COORDINATE, "x");
-        let position = getPDMatrixInfo(OBSERVER_COORDINATE, "m");
-        axis = clipMatrix(axis, 0, 0, 2, 0);
-        let R = calculateRotationMatrix(axis, PHI);
-        let newDir = matrixMultiply(getDirectionMatrix(OBSERVER_COORDINATE), R);
-        OBSERVER_COORDINATE = concatenateMatrices(concatenateMatrices(newDir, V03H), position);
+        applyTransform("R", ["x", "ccw"]);
     }
     refreshDisplay();
 });

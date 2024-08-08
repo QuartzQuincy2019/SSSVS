@@ -13,6 +13,7 @@
         };
     </script>
     <title>SSSVS</title>
+    <link rel="stylesheet" href="./css/general.css">
     <meta name="viewport" content="width=device-width" charset="utf-8" />
     <script src="./js/lib/decimal.js"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
@@ -28,8 +29,10 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
         integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"
         onload="renderMathInElement(document.body);"></script>
+    <script src="./dv.js"></script>
     <script src="./js/plugin/ZEREMF.js"></script>
     <script src="./js/plugin/ZERSCF.js"></script>
+    <script src="./rendering/MVP.js"></script>
 </head>
 
 <body>
@@ -49,6 +52,20 @@
         \end{bmatrix}$表示观测者坐标系$S$三个坐标轴对应的单位向量在绝对坐标系$A$的坐标.旋转一次的角度为$\varphi=\frac{\pi}{6}$，规定绕轴向左旋转$\varphi>0$</p>
         <p>将位置矩阵和方向矩阵结合，形成齐次矩阵$L=\begin{bmatrix} x_{\vec{SX}}&x_{\vec{SY}}&x_{\vec{SZ}}&x\\  y_{\vec{SX}}&y_{\vec{SY}}&y_{\vec{SZ}}&y\\   z_{\vec{SX}}&z_{\vec{SY}}&z_{\vec{SZ}}&z \\ 0&0&0&1\\   \end{bmatrix}$下面展示的是齐次矩阵$L$：</p>
     <hr>
+    <div id="button_container">
+        <div class="controller mvY" onclick="applyTransform('M',['y','+']);">前移</div>
+        <div class="controller mvY" onclick="applyTransform('M',['y','-']);">后移</div>
+        <div class="controller mvX" onclick="applyTransform('M',['x','-']);">左移</div>
+        <div class="controller mvX" onclick="applyTransform('M',['x','+']);">右移</div>
+        <div class="controller mvZ" onclick="applyTransform('M',['z','+']);">上升</div>
+        <div class="controller mvZ" onclick="applyTransform('M',['z','-']);">下降</div>
+        <div class="controller rt" onclick="applyTransform('R',['z','ccw']);">左转</div>
+        <div class="controller rt" onclick="applyTransform('R',['z','cw']);">右转</div>
+        <div class="controller rt" onclick="applyTransform('R',['y','cw']);">左倾</div>
+        <div class="controller rt" onclick="applyTransform('R',['y','ccw']);">右倾</div>
+        <div class="controller rt" onclick="applyTransform('R',['x','cw']);">俯首</div>
+        <div class="controller rt" onclick="applyTransform('R',['x','ccw']);">仰首</div>
+    </div>
     <div id="origin_displayer" style="font-family: Arial, Helvetica, sans-serif; font-size: 25px;"></div>
     <div id="distance_displayer" style="font-family: Arial, Helvetica, sans-serif; font-size: 25px;"></div>
     <hr>

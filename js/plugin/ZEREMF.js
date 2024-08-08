@@ -89,6 +89,7 @@ class Matrix {
             }
         }
     }
+
     print(precision = 5) {
         var output = (this.r) + "×" + (this.c) + "<br>";
         for (var i = 0; i < this.r; i++) {
@@ -98,6 +99,127 @@ class Matrix {
             output += "\n<br>";
         }
         return output;
+    }
+
+    table(precision = 5) {
+        var e = document.createElement("table");
+        for (var i = 0; i < this.r; i++) {
+            var tr = document.createElement("tr");
+            for (var j = 0; j < this.c; j++) {
+                var td = document.createElement("td");
+                td.innerHTML = (this.matrix[i][j]).toFixed(precision);
+                tr.appendChild(td);
+            }
+            e.appendChild(tr);
+        }
+        return e;
+    }
+
+    fillMatrix(data) {
+        this.matrix = data;
+        return this;
+    }
+
+    initializeMatrix(...numbers) {
+        if (this.r == undefined || this.c == undefined) {
+            throw new Error("矩阵未初始化！");
+        }
+        if (this.r * this.c != numbers.length) {
+            throw new Error("给出的参数数量与矩阵不对应！");
+        }
+        var t = 0;
+        for (var i = 0; i < this.r; i++) {
+            for (var j = 0; j < this.c; j++) {
+                this.matrix[i][j] = numbers[t];
+                t++;
+            }
+        }
+    }
+
+    /**
+     * 获取转置矩阵
+     * @returns 
+     */
+    transpose() {
+        var matrix = this;
+        var result = new Matrix(matrix.c, matrix.r);
+        for (var i = 0; i < matrix.c; i++) {
+            var n = new Array(matrix.r);
+            for (var j = 0; j < matrix.r; j++) {
+                n[j] = matrix.matrix[j][i];
+            }
+            result.matrix[i] = n;
+        }
+        return result;
+    }
+
+    /**
+     * 获取余子式
+     * @returns {Matrix}
+     */
+    getSubMatrix(i, j) {
+        return new Matrix(this.r - 1, this.c - 1).fillMatrix(
+            this.matrix
+                .filter((_, rowIndex) => rowIndex !== i)
+                .map(row => row.filter((_, colIndex) => colIndex !== j))
+        );
+    }
+
+    /**
+     * 获取行列式值（递归）
+     * @returns {Number}
+     */
+    getDet() {
+        if (this.r === 1 && this.c === 1) {
+            return new Decimal(this.matrix[0][0]);
+        }
+        if (this.r === 2 && this.c === 2) {
+            return new Decimal(this.matrix[0][0]).times(this.matrix[1][1])
+                .minus(new Decimal(this.matrix[0][1]).times(this.matrix[1][0]));
+        }
+
+        let det = new Decimal(0);
+        for (let j = 0; j < this.c; j++) {
+            const sign = Math.pow(-1, j);
+            const subDet = this.getSubMatrix(0, j).getDet();
+            det = det.plus(new Decimal(sign).times(new Decimal(this.matrix[0][j])).times(subDet));
+        }
+        return det;
+    }
+
+    /**
+     * 获取伴随矩阵
+     * @returns 
+     */
+    getAdjugate() {
+        const adjugate = new Matrix(this.r, this.c);
+        for (let i = 0; i < this.r; i++) {
+            for (let j = 0; j < this.c; j++) {
+                const sign = Math.pow(-1, i + j);
+                const subDet = this.getSubMatrix(i, j).getDet();
+                adjugate.matrix[i][j] = new Decimal(sign).times(subDet);
+            }
+        }
+        return adjugate.transpose();
+    }
+
+    /**
+     * 获取逆矩阵
+     * @returns 
+     */
+    getInverse() {
+        const det = this.getDet();
+        if (det == 0) {
+            throw new Error("该矩阵不可逆，行列式为零。");
+        }
+        const adjugate = this.getAdjugate();
+        const inverse = new Matrix(this.r, this.c);
+        for (let i = 0; i < this.r; i++) {
+            for (let j = 0; j < this.c; j++) {
+                inverse.matrix[i][j] = adjugate.matrix[i][j].div(det);
+            }
+        }
+        return inverse;
     }
 }
 
@@ -228,21 +350,6 @@ function matrixPower(matrix, power) {
     return u;
 }
 
-/**
- * 转置
- * @param {Matrix} matrix 
- */
-function transpose(matrix) {
-    var result = new Matrix(matrix.c, matrix.r);
-    for (var i = 0; i < matrix.c; i++) {
-        var n = new Array(matrix.r);
-        for (var j = 0; j < matrix.r; j++) {
-            n[j] = matrix.matrix[j][i];
-        }
-        result.matrix[i] = n;
-    }
-    return result;
-}
 
 /**
  * 两矩阵是否相等
@@ -337,58 +444,68 @@ function concatenateVectors(...vectors) {
     }
     return output;
 }
+var C = new Matrix(5, 5);
+C.matrix = [
+    [24, 20, 24, 28, 20],
+    [25, 21, 23, 24, 29],
+    [29, 24, 29, 28, 28],
+    [23, 26, 20, 27, 27],
+    [28, 27, 28, 27, 24],
+    [20, 29, 29, 28, 29],
+    [20, 27, 25, 29, 28]];
 
-
-var A = new Matrix(3, 3);
-var B = new Matrix(2, 3);
-var C = new Matrix(4, 3);
-A.matrix = [[8, 5, 5], [9, 6, 7], [7, 7, 7]];
-B.matrix = [[10, 12, 11], [19, 12, 16]];
-C.matrix = [[24, 20, 24], [25, 21, 23], [29, 24, 28], [23, 26, 20]];
 /**
- * 对列数相同或行数相同的矩阵进行合并。
+ * 
+ * @param {String} MODE 'H'横向或'V纵向合并
  * @param  {...Matrix} matrices 
+ * @returns 
  */
-function concatenateMatrices(...matrices) {
-    var R = matrices[0].r;
-    var C = matrices[0].c;
-    if (matrices.every((mat) => mat.r == R)) {//列合并模式
-        var Cf = 0;
-        matrices.forEach((mat) => {
-            Cf += mat.c;
-        });
-        var output = new Matrix(R, Cf);
-        var J = 0;
-        for (var i = 0; i < output.r; i++) {
-            for (var j = 0; j < matrices.length; j++) {//j是矩阵数组序列号
-                for (var k = 0; k < matrices[j].c; k++) {
-                    output.matrix[i][J] = matrices[j].matrix[i][k];
-                    J++;
-                }
-            }
-            J = 0;
-        }
-        return output;
+const concatenateMatrices = (MODE, ...matrices) => {
+    switch (MODE) {
+        case 'H': // 横向合并
+            return concatenateHorizontally(matrices);
+        case 'V': // 纵向合并
+            return concatenateVertically(matrices);
+        default:
+            throw new Error('无效的合并模式');
     }
-    if (matrices.every((mat) => mat.c == C)) {
-        var Rf = 0;
-        matrices.forEach((mat) => {
-            Rf += mat.r;
-        });
-        var output = new Matrix(Rf, C);
-        var K = 0;
-        for (var i = 0; i < matrices.length; i++) {
-            for (var j = 0; j < matrices[i].r; j++) {
-                output.matrix[K] = matrices[i].matrix[j];
-                K++;
-            }
-        }
-        return output;
+};
+
+const concatenateHorizontally = (matrices) => {
+    const rowCount = matrices[0].r;
+    if (!matrices.every(matrix => matrix.r === rowCount)) {
+        throw new Error('所有矩阵必须具有相同的行数以进行横向合并');
     }
-    throw new Error("无法合并矩阵！");
-}
-var D = concatenateMatrices(A, B, C);
-var E = clipMatrix(D, 1, 0, 3, 2);
+
+    const totalCols = matrices.reduce((sum, matrix) => sum + matrix.c, 0);
+    const concatenated = new Matrix(rowCount, totalCols).fillMatrix(
+        matrices[0].matrix.map((row, i) => matrices.reduce((acc, matrix) => acc.concat(matrix.matrix[i]), []))
+    );
+
+    return concatenated;
+};
+
+const concatenateVertically = (matrices) => {
+    const colCount = matrices[0].c;
+    if (!matrices.every(matrix => matrix.c === colCount)) {
+        throw new Error('所有矩阵必须具有相同的列数以进行纵向合并');
+    }
+
+    const totalRows = matrices.reduce((sum, matrix) => sum + matrix.r, 0);
+    const concatenated = new Matrix(totalRows, colCount);
+
+    let currentRow = 0;
+    matrices.forEach(matrix => {
+        matrix.matrix.forEach(row => {
+            concatenated.matrix[currentRow++] = row.slice();
+        });
+    });
+
+    return concatenated;
+};
+
+var D = concatenateMatrices('H', C, C);
+D = concatenateMatrices('V', D, D);
 
 /**
  * 向量单位化
@@ -399,7 +516,7 @@ function uniteVector(vector) {
     var isVertical = false;
     if (isVerticalVector(vector)) {
         isVertical = true;
-        vector = transpose(vector);
+        vector = vector.transpose();
     }
     var dimension = vector.c;
     var commonFactor = Decimal(0);
@@ -417,7 +534,7 @@ function uniteVector(vector) {
         output.matrix[0][i] = (Decimal.div(Decimal(vector.matrix[0][i]), commonFactor));
     }
     if (isVertical) {
-        output = transpose(output);
+        output = output.transpose();
     }
     return output;
 }
@@ -436,3 +553,5 @@ function deg2rad(deg) {
     const d = Decimal(Decimal.div(180, PI));
     return Decimal.div(deg, d);
 }
+
+
